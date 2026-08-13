@@ -4,15 +4,16 @@ Blur is a privacy-preserving Manifest V3 Chrome extension that identifies AI-gen
 
 ## Results at a glance
 
-All labeled results below use the bounty rule unchanged: **AI when score ≥ 0.65**. The untouched diagnostic contains held-out LAION real photographs and Midjourney 5.2/6.1 images; none were used to train or select the production checkpoint.
+All labeled results below use the bounty rule unchanged: **AI when score ≥ 0.65**. The broad frozen test contains 500 real bases from three acquisition sources and 552 AI bases from three unseen generator families; none were used to train, calibrate, or select the production checkpoint.
 
 | Evaluation | Balanced accuracy | AI recall | Real recall | Confusion counts |
 |---|---:|---:|---:|---:|
-| **Deployed Chrome/WebGPU, untouched full resolution** | **98.4%** | **96.9%** | **100%** | **TP 31 · FN 1 · TN 32 · FP 0** |
-| Severe 256 px / JPEG 75 diagnostic | 62.5% | 28.1% | 96.9% | TP 9 · FN 23 · TN 31 · FP 1 |
-| Severe 192 px / JPEG 50 diagnostic | 59.4% | 21.9% | 96.9% | TP 7 · FN 25 · TN 31 · FP 1 |
+| **Broad frozen full resolution (1,052 bases), deployed Chrome/WebGPU** | **95.6%** | **92.4%** | **98.8%** | **TP 510 · FN 42 · TN 494 · FP 6** |
+| Small protected full-resolution diagnostic (64 bases), deployed Chrome/WebGPU | 98.4% | 96.9% | 100% | TP 31 · FN 1 · TN 32 · FP 0 |
+| Broad frozen 256 px / JPEG 75 (1,037 bases), deployed Chrome/WebGPU | 67.1% | 39.7% | 94.4% | TP 219 · FN 333 · TN 458 · FP 27 |
+| Protected 192 px / JPEG 50 diagnostic (64 bases), reference scorer | 59.4% | 21.9% | 96.9% | TP 7 · FN 25 · TN 31 · FP 1 |
 
-The full-resolution row was measured through the production extension—fetch, decode, multi-crop aggregation, and evidence fusion—not just an offline model wrapper. The two severe-stress rows use the reproducible single-center-crop reference scorer because one extremely narrow image per slice falls below the extension's 96 px minimum edge. See the [machine-readable deployed report](docs/results/deployed-full.json) and [`docs/BENCHMARK.md`](docs/BENCHMARK.md).
+The first three rows exercise the production extension—fetch, browser decode, multi-crop aggregation, and evidence fusion—not just an offline model wrapper. The broad full-resolution result clears 95% balanced accuracy, but the broad thumbnail result does not: recompressed small images remain the detector's principal limitation. The fail-closed release gate therefore remains blocked. See the [broad frozen report](docs/results/frozen-broad.json), [small protected report](docs/results/deployed-full.json), and [`docs/BENCHMARK.md`](docs/BENCHMARK.md).
 
 The clean Chrome Google Images smoke test shown below completed 47 local analyses with no inference errors: **39 met the AI threshold and were blurred; 8 remained below it**. Search results are not ground-truth labels, so this is product-behavior evidence rather than an accuracy claim.
 
@@ -76,6 +77,8 @@ The packaged artifact is `release/blur-chrome.zip`. The pinned production safete
 - A clean-profile Chrome for Testing smoke test produces an on-page score using WebGPU.
 - The same smoke test with GPU disabled produces an on-page score using WASM.
 - Chrome accepts and packs the MV3 manifest.
+
+On one Apple Silicon macOS test machine, a fresh-profile WebGPU case took 352.7 ms through the inference pipeline (48.8 ms inference), while a fresh-profile GPU-disabled WASM case took 905.5 ms (595 ms inference). Across 64 WebGPU cases in bounded 48-image waves, warm uncached p50/p95 inference was 47.8/51.3 ms and per-job end-to-end pipeline time was 69.8/84.6 ms; request-to-DOM wall time including queueing was 717.9/1,774.6 ms. A separate 64-image WASM run still completed 64/64 after the extension service worker was terminated mid-run. These engineering measurements are machine- and workload-specific, not universal performance guarantees. Chrome was launched with external DNS blocked, and the scorer observed zero unexpected requests in its page-target network trace; the trace complements, but does not replace, process- or OS-level network blocking for offline verification.
 
 ## Limitations
 

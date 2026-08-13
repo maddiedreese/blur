@@ -1,0 +1,61 @@
+{
+  "status": "diagnostic-release-gate-rejected",
+  "threshold": 0.65,
+  "evaluationMode": "deployed",
+  "runtime": "webgpu",
+  "modelSha256": "c376ed8cf38f2aedd21c74cfaf51ee9fec7936efd332f54d76bf630a14e2d3bf",
+  "preprocessingVersion": "blur-v1-resize440-crop384-spatial3-logodds-0.9-0.1",
+  "frozenManifestSha256": "40d193d662684d7032c07ee1cf897654b6771eb964ec070b4a48068089163af8",
+  "deployedScoresSha256": "c696168a38c7c2869a7f16e40c55af898ad30ed4cdcd37c3d32def769b4525bc",
+  "independentBases": {
+    "real": 500,
+    "ai": 552,
+    "realSources": 3,
+    "generatorFamilies": 3
+  },
+  "fullResolution": {
+    "count": 1052,
+    "tp": 510,
+    "fn": 42,
+    "tn": 494,
+    "fp": 6,
+    "aiRecall": 0.9239130434782609,
+    "realRecall": 0.988,
+    "falsePositiveRate": 0.012,
+    "balancedAccuracy": 0.9559565217391304
+  },
+  "thumbnail256Jpeg75": {
+    "count": 1037,
+    "tp": 219,
+    "fn": 333,
+    "tn": 458,
+    "fp": 27,
+    "aiRecall": 0.3967391304347826,
+    "realRecall": 0.9443298969072165,
+    "falsePositiveRate": 0.05567010309278351,
+    "balancedAccuracy": 0.6705345136709995
+  },
+  "conservativeAcrossRequiredViews": {
+    "tp": 214,
+    "fn": 338,
+    "tn": 468,
+    "fp": 32,
+    "aiRecall": 0.38768115942028986,
+    "realRecall": 0.936,
+    "falsePositiveRate": 0.064,
+    "balancedAccuracy": 0.661840579710145
+  },
+  "collector": {
+    "rows": 2089,
+    "scored": 2089,
+    "skipped": 0,
+    "errors": 0,
+    "unexpectedNetworkRequestCount": 0,
+    "batches": 44,
+    "batchSize": 48
+  },
+  "releaseGate": {
+    "approved": false,
+    "reason": "The full-resolution slice is strong, but conservative cross-view accuracy, thumbnail recall, real recall, false-positive confidence, and AI-recall confidence do not meet the documented release policy."
+  }
+}

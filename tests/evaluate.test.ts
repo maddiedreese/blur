@@ -6,7 +6,7 @@ import { applyCalibration, fitPlatt, validateCalibrationEvidence } from '../scri
 // @ts-expect-error The CLI is intentionally plain ESM and exercised directly by Vitest.
 import { validateDataset } from '../scripts/validate-dataset.mjs';
 // @ts-expect-error The CLI is intentionally plain ESM and exercised directly by Vitest.
-import { releaseGate } from '../scripts/release-gate.mjs';
+import { independentBaseOutcomes, releaseGate } from '../scripts/release-gate.mjs';
 
 describe('fixed bounty threshold', () => {
   it('classifies exactly 0.65 as AI', () => {
@@ -118,5 +118,42 @@ describe('release safety gate', () => {
     const result = releaseGate(rows);
     expect(result.approved).toBe(false);
     expect(result.reasons.join('\n')).toMatch(/false-positive/);
+  });
+
+  it('does not count correlated derivatives as independent Wilson trials', () => {
+    const rows = releaseRows();
+    const duplicated = rows.flatMap((row) => [row, { ...row, id: `${row.id}-derivative` }]);
+    const result = releaseGate(duplicated);
+    expect(result.confidence.independentBases).toEqual({ real: 500, ai: 500 });
+    expect(result.resolutionConfidence['full-res'].independentBases).toEqual({ real: 250, ai: 250 });
+  });
+
+  it('collapses each base conservatively when one derivative fails', () => {
+    const outcomes = independentBaseOutcomes([
+      { baseId: 'real', label: 0, score: 0.1 }, { baseId: 'real', label: 0, score: 0.9 },
+      { baseId: 'ai', label: 1, score: 0.9 }, { baseId: 'ai', label: 1, score: 0.1 },
+    ]);
+    expect(outcomes).toEqual([
+      { baseId: 'real', label: 0, success: false },
+      { baseId: 'ai', label: 1, success: false },
+    ]);
+  });
+
+  it('does not let successful duplicate views dilute failed bases in metric gates', () => {
+    const rows = releaseRows();
+    const failedBases = new Set(rows.filter((row) => row.label === 0).slice(0, 11).map((row) => row.baseId));
+    for (const row of rows) {
+      if (failedBases.has(row.baseId)) row.score = 0.9;
+    }
+    const successfulReal = rows.filter((row) => row.label === 0 && !failedBases.has(row.baseId));
+    const diluted = [...rows];
+    for (let copy = 0; copy < 20; copy++) {
+      diluted.push(...successfulReal.map((row) => ({ ...row, id: `${row.id}-success-${copy}` })));
+    }
+    const result = releaseGate(diluted);
+    expect(result.overall.realRecall).toBeGreaterThan(0.99);
+    expect(result.confidence.conservativeMetrics.realRecall).toBeCloseTo(489 / 500);
+    expect(result.approved).toBe(false);
+    expect(result.reasons.join('\n')).toMatch(/conservative independent-base real recall/);
   });
 });
