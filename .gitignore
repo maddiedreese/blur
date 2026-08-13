@@ -1,0 +1,11 @@
+node_modules/
+.venv*/
+dist/
+release/
+coverage/
+models/*.onnx
+models/*.onnx.data
+models/*.safetensors
+.DS_Store
+*.crx
+*.pem

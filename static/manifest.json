@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Blur — Local AI Image Detector",
+  "version": "0.1.0",
+  "description": "Detects AI-generated images locally. Images never leave your browser.",
+  "minimum_chrome_version": "121",
+  "permissions": ["offscreen", "storage"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["content.js"],
+      "css": ["content.css"],
+      "run_at": "document_idle",
+      "all_frames": true,
+      "match_about_blank": true,
+      "match_origin_as_fallback": true,
+      "world": "ISOLATED"
+    }
+  ],
+  "action": { "default_popup": "popup.html", "default_title": "Blur" },
+  "options_page": "options.html",
+  "content_security_policy": {
+    "extension_pages": "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; object-src 'self'; worker-src 'self'; connect-src http: https: data:; img-src 'self' data: blob:; style-src 'self'"
+  }
+}

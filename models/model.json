@@ -1,0 +1,13 @@
+{
+  "source": "https://huggingface.co/OwensLab/commfor-model-384/resolve/6076002bf0d9dd37537f965ee2f06f826c333b61/model.safetensors",
+  "source_sha256": "b89f36275f3bf5e2b040eee36597a8f19db051bff9a473a9cf7b2466284fb387",
+  "onnx_sha256": "6a6d40b50f1b7469c8c3bdc918f87f77cffd6754c486773b8b632985374dab8b",
+  "input": [
+    1,
+    3,
+    384,
+    384
+  ],
+  "output": "fake_logit",
+  "opset": 18
+}

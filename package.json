@@ -1,0 +1,30 @@
+{
+  "name": "blur-local-ai-image-detector",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Privacy-preserving AI-generated image detection in Chrome.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "model:export": ".venv311/bin/python tools/export_model.py",
+    "model:verify": ".venv311/bin/python tools/verify_model.py",
+    "check": "tsc --noEmit && eslint .",
+    "test": "vitest run",
+    "package": "npm run build && node scripts/package.mjs",
+    "verify": "npm run check && npm test && npm run build"
+  },
+  "dependencies": {
+    "onnxruntime-web": "1.22.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.32.0",
+    "@types/chrome": "0.0.326",
+    "archiver": "7.0.1",
+    "esbuild": "0.25.8",
+    "eslint": "9.32.0",
+    "globals": "16.3.0",
+    "typescript": "5.9.2",
+    "typescript-eslint": "8.39.0",
+    "vitest": "3.2.4"
+  }
+}

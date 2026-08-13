@@ -1,0 +1,13 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Blur extension fixture</title></head>
+<body><h1>Dynamic image fixture</h1><img id="fixture" width="256" height="256" alt="generated local test fixture">
+<script>
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 256;
+  const context = canvas.getContext('2d');
+  const gradient = context.createLinearGradient(0, 0, 256, 256);
+  gradient.addColorStop(0, '#0f172a'); gradient.addColorStop(1, '#a855f7');
+  context.fillStyle = gradient; context.fillRect(0, 0, 256, 256);
+  context.fillStyle = '#fff'; context.font = 'bold 38px system-ui'; context.fillText('BLUR', 72, 142);
+  document.querySelector('#fixture').src = canvas.toDataURL('image/png');
+</script></body></html>
