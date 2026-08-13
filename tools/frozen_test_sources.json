@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 2,
+  "sources": [
+    {
+      "source": "nyuuzyou/pxhere",
+      "datasetRevision": "9a0820f476ea1ba00f6053e63bc81f24c5eb605f",
+      "license": "CC0-1.0",
+      "label": 0,
+      "count": 200,
+      "contentGroups": ["camera-photograph", "product-photograph", "people-photograph", "landscape-photograph"]
+    },
+    {
+      "source": "Mitsua/art-museums-pd-440k",
+      "datasetRevision": "fba945da78b36262eb9272067197cc28d06cffbf",
+      "license": "CC-BY-4.0",
+      "label": 0,
+      "count": 200,
+      "contentGroups": ["human-art", "sculpture", "decorative-art", "object-render"]
+    },
+    {
+      "source": "naver-clova-ix/cord-v2",
+      "datasetRevision": "7f0115a4b758a71d6473b8d085751692da2fef98",
+      "license": "CC-BY-4.0",
+      "label": 0,
+      "count": 100,
+      "contentGroups": ["text-heavy-receipt"]
+    },
+    {
+      "source": "Coxy7/X-AIGD",
+      "datasetRevision": "92180f32030507ab54a40d6f1b88f39d6cec8178",
+      "license": "CC-BY-4.0",
+      "label": 1,
+      "count": 552,
+      "datasetConfig": "default",
+      "datasetSplit": "labeled_test",
+      "imageColumn": "image",
+      "promptColumn": "original_prompt",
+      "uidColumn": "uid",
+      "contentGroups": ["prompted-generation"],
+      "generators": [
+        {"generatorFamily": "HYDiT-1.2", "generatorModel": "HYDiT_1.2-raw", "count": 181},
+        {"generatorFamily": "Infinity", "generatorModel": "Infinity-raw", "count": 198},
+        {"generatorFamily": "Lumina-Next", "generatorModel": "Lumina_Next-raw", "count": 173}
+      ]
+    }
+  ]
+}

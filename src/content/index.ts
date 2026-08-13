@@ -73,6 +73,14 @@ function eligible(image: HTMLImageElement): boolean {
   return Boolean(source && image.naturalWidth >= MIN_EDGE && image.naturalHeight >= MIN_EDGE && !source.startsWith('chrome-extension:'));
 }
 
+function ineligibleReason(image: HTMLImageElement): string | undefined {
+  const source = resolvedSource(image);
+  if (!source) return 'skipped-no-source';
+  if (source.startsWith('chrome-extension:')) return 'skipped-unsupported';
+  if (image.naturalWidth < MIN_EDGE || image.naturalHeight < MIN_EDGE) return 'skipped-small';
+  return;
+}
+
 function watch(root: ParentNode): void {
   if (root instanceof HTMLImageElement) observer.observe(root);
   root.querySelectorAll?.('img').forEach((image) => observer.observe(image));
@@ -94,7 +102,16 @@ function schedulePositions(): void {
 }
 
 async function analyze(image: HTMLImageElement): Promise<void> {
-  if (!eligible(image) || settings.disabledOrigins.includes(location.origin)) return;
+  if (settings.disabledOrigins.includes(location.origin)) {
+    image.dataset.blurState = 'skipped-disabled';
+    return;
+  }
+  const reason = ineligibleReason(image);
+  if (reason) {
+    image.dataset.blurState = reason;
+    return;
+  }
+  if (!eligible(image)) return;
   const source = resolvedSource(image);
   const candidates = candidateSources(image);
   const fingerprint = candidates.join('\n') || source;
@@ -105,10 +122,20 @@ async function analyze(image: HTMLImageElement): Promise<void> {
   delete image.dataset.blurResult;
   delete image.dataset.blurScore;
   delete image.dataset.blurRuntime;
+  delete image.dataset.blurElapsedMs;
+  delete image.dataset.blurWallMs;
+  delete image.dataset.blurPerformance;
+  delete image.dataset.blurError;
+  image.dataset.blurStartedAt = performance.now().toFixed(3);
   image.dataset.blurState = 'analyzing';
   const message: ExtensionMessage = { type: 'ANALYZE_IMAGE', requestId, url: source, candidates };
   try { await chrome.runtime.sendMessage(message); }
-  catch { pending.delete(requestId); delete image.dataset.blurState; }
+  catch (error) {
+    pending.delete(requestId);
+    image.dataset.blurState = 'error';
+    image.dataset.blurError = (error instanceof Error ? error.message : 'Extension messaging failed').slice(0, 160);
+    delete image.dataset.blurStartedAt;
+  }
 }
 
 function display(image: HTMLImageElement, detection: Detection): void {
@@ -116,8 +143,13 @@ function display(image: HTMLImageElement, detection: Detection): void {
   old?.remove();
   delete image.dataset.blurState;
   image.dataset.blurResult = detection.label;
-  image.dataset.blurScore = detection.score.toFixed(8);
+  image.dataset.blurScore = String(detection.score);
   image.dataset.blurRuntime = detection.runtime;
+  image.dataset.blurElapsedMs = detection.elapsedMs.toFixed(3);
+  const startedAt = Number(image.dataset.blurStartedAt);
+  if (Number.isFinite(startedAt)) image.dataset.blurWallMs = (performance.now() - startedAt).toFixed(3);
+  delete image.dataset.blurStartedAt;
+  image.dataset.blurPerformance = JSON.stringify(detection.performance ?? null);
   const badge = document.createElement('span');
   badge.className = `blur-score blur-score--${detection.label === 'ai' ? 'above-threshold' : 'below-threshold'}`;
   badge.textContent = `AI score ${Math.round(detection.score * 100)}`;
@@ -134,7 +166,11 @@ chrome.runtime.onMessage.addListener((message: ExtensionMessage) => {
   if (!entry) return;
   if (observed.get(entry.image) !== entry.fingerprint) return;
   if (message.detection) display(entry.image, message.detection);
-  else delete entry.image.dataset.blurState;
+  else {
+    entry.image.dataset.blurState = 'error';
+    entry.image.dataset.blurError = (message.error || 'Inference failed').slice(0, 160);
+    delete entry.image.dataset.blurStartedAt;
+  }
 });
 
 chrome.storage.local.get(DEFAULT_SETTINGS).then((stored) => { settings = stored as Settings; watch(document); });

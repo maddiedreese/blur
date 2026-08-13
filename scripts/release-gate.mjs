@@ -13,6 +13,58 @@ function wilson(successes, total, direction) {
   return direction === 'lower' ? Math.max(0, center - margin) : Math.min(1, center + margin);
 }
 
+export function independentBaseOutcomes(rows) {
+  const groups = new Map();
+  for (const row of rows) {
+    if (!row.baseId || ![0, 1].includes(row.label) || !Number.isFinite(row.score)) continue;
+    const key = `${row.label}:${row.baseId}`;
+    if (!groups.has(key)) groups.set(key, { baseId: row.baseId, label: row.label, rows: [] });
+    groups.get(key).rows.push(row);
+  }
+  return [...groups.values()].map((group) => ({
+    baseId: group.baseId,
+    label: group.label,
+    // Conservative across deterministic derivatives: a real base succeeds only
+    // if every view stays below threshold; an AI base succeeds only if every
+    // required view reaches it. One base contributes one Bernoulli outcome.
+    success: group.label === 0
+      ? group.rows.every((row) => row.score < THRESHOLD)
+      : group.rows.every((row) => row.score >= THRESHOLD),
+  }));
+}
+
+function confidenceFor(rows) {
+  const outcomes = independentBaseOutcomes(rows);
+  const real = outcomes.filter((item) => item.label === 0);
+  const ai = outcomes.filter((item) => item.label === 1);
+  const realSuccesses = real.filter((item) => item.success).length;
+  const aiSuccesses = ai.filter((item) => item.success).length;
+  const realRecall = real.length ? realSuccesses / real.length : null;
+  const aiRecall = ai.length ? aiSuccesses / ai.length : null;
+  return {
+    independentBases: { real: real.length, ai: ai.length },
+    conservativeCounts: {
+      realSuccesses,
+      realFailures: real.length - realSuccesses,
+      aiSuccesses,
+      aiFailures: ai.length - aiSuccesses,
+    },
+    conservativeMetrics: {
+      tp: aiSuccesses,
+      fn: ai.length - aiSuccesses,
+      tn: realSuccesses,
+      fp: real.length - realSuccesses,
+      aiRecall,
+      realRecall,
+      falsePositiveRate: realRecall === null ? null : 1 - realRecall,
+      balancedAccuracy: aiRecall === null || realRecall === null ? null : (aiRecall + realRecall) / 2,
+    },
+    realRecallLower95: wilson(realSuccesses, real.length, 'lower'),
+    falsePositiveRateUpper95: wilson(real.length - realSuccesses, real.length, 'upper'),
+    aiRecallLower95: wilson(aiSuccesses, ai.length, 'lower'),
+  };
+}
+
 export function releaseGate(rows) {
   const reasons = [];
   const ids = new Set();
@@ -41,34 +93,40 @@ export function releaseGate(rows) {
   if (realSources.size < 3) reasons.push('requires at least three held-out real-image sources');
   if (generatorFamilies.size < 3) reasons.push('requires at least three held-out generator families');
 
+  const confidence = confidenceFor(rows);
   if (overall) {
-    const realLower = wilson(overall.tn, overall.tn + overall.fp, 'lower');
-    const fpUpper = wilson(overall.fp, overall.tn + overall.fp, 'upper');
-    const aiLower = wilson(overall.tp, overall.tp + overall.fn, 'lower');
-    if ((overall.balancedAccuracy ?? 0) < 0.9) reasons.push('balanced accuracy is below 0.90');
-    if ((overall.realRecall ?? 0) < 0.98) reasons.push('real recall is below 0.98');
+    const conservative = confidence.conservativeMetrics;
+    const realLower = confidence.realRecallLower95;
+    const fpUpper = confidence.falsePositiveRateUpper95;
+    const aiLower = confidence.aiRecallLower95;
+    if ((conservative.balancedAccuracy ?? 0) < 0.9) reasons.push('conservative independent-base balanced accuracy is below 0.90');
+    if ((conservative.realRecall ?? 0) < 0.98) reasons.push('conservative independent-base real recall is below 0.98');
     if ((realLower ?? 0) < 0.95) reasons.push('95% Wilson lower bound for real recall is below 0.95');
     if ((fpUpper ?? 1) > 0.02) reasons.push('95% Wilson upper bound for false-positive rate exceeds 0.02');
     if ((aiLower ?? 0) < 0.8) reasons.push('95% Wilson lower bound for AI recall is below 0.80');
   }
 
   const resolutionGroups = {};
+  const resolutionConfidence = {};
   for (const group of REQUIRED_RESOLUTION_GROUPS) {
     const groupRows = rows.filter((row) => row.resolutionGroup === group);
     const groupReal = new Set(groupRows.filter((row) => row.label === 0).map((row) => row.baseId)).size;
     const groupAi = new Set(groupRows.filter((row) => row.label === 1).map((row) => row.baseId)).size;
     const result = metrics(groupRows);
+    resolutionConfidence[group] = confidenceFor(groupRows);
     resolutionGroups[group] = result;
     if (groupReal < 100 || groupAi < 100) reasons.push(`${group} requires at least 100 rows per class`);
-    if ((result.balancedAccuracy ?? 0) < 0.85) reasons.push(`${group} balanced accuracy is below 0.85`);
-    if ((result.realRecall ?? 0) < 0.97) reasons.push(`${group} real recall is below 0.97`);
+    const conservative = resolutionConfidence[group].conservativeMetrics;
+    if ((conservative.balancedAccuracy ?? 0) < 0.85) reasons.push(`${group} conservative independent-base balanced accuracy is below 0.85`);
+    if ((conservative.realRecall ?? 0) < 0.97) reasons.push(`${group} conservative independent-base real recall is below 0.97`);
   }
 
   for (const source of realSources) {
     const sourceRows = rows.filter((row) => row.label === 0 && row.source === source);
-    const result = metrics(sourceRows);
-    if (sourceRows.length < 50) reasons.push(`real source ${source} has fewer than 50 rows`);
-    if ((result.falsePositiveRate ?? 1) > 0.05) reasons.push(`real source ${source} false-positive rate exceeds 0.05`);
+    const outcomes = independentBaseOutcomes(sourceRows);
+    const failures = outcomes.filter((item) => !item.success).length;
+    if (outcomes.length < 50) reasons.push(`real source ${source} has fewer than 50 unique base images`);
+    if (outcomes.length === 0 || failures / outcomes.length > 0.05) reasons.push(`real source ${source} conservative base false-positive rate exceeds 0.05`);
   }
 
   return {
@@ -78,7 +136,9 @@ export function releaseGate(rows) {
     sampleCounts: { real: realCount, ai: aiCount },
     sourceCounts: { real: realSources.size, generatorFamilies: generatorFamilies.size },
     overall,
+    confidence,
     resolutionGroups,
+    resolutionConfidence,
     reasons,
   };
 }

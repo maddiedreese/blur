@@ -106,11 +106,36 @@ Small samples are diagnostic only. In particular, a clean full-resolution result
 - At least 100 samples per class in each resolution group, with balanced accuracy at least 0.85 and real recall at least 0.97 in both.
 - At least 50 real examples per source and no real source with observed false-positive rate above 0.05.
 
+Confidence intervals and per-source floors treat `baseId`, not derivative rows,
+as the independent unit. A real base is conservatively successful only when
+every required derivative remains below threshold; an AI base is successful
+only when every required derivative reaches threshold. Overall and per-resolution
+Wilson bounds use these one-per-base outcomes. Repeating crops or transforms can
+never narrow a confidence interval or dilute a source's false-positive rate.
+The balanced-accuracy, observed-real-recall, and per-resolution pass/fail gates
+also use these conservative independent-base outcomes. Raw derivative-row
+metrics remain descriptive report fields only and cannot authorize packaging.
+
 Run it directly with:
 
 ```sh
 npm run release:gate -- artifacts/release-test-scores.jsonl
 ```
+
+### Deployed-path scorer and performance report
+
+Run the browser scorer against an already-running clean Chrome profile loaded with the production `dist/` build:
+
+```sh
+SCORE_BATCH_SIZE=48 SCORE_EXPECT_RUNTIME=webgpu CDP_PORT=9226 \
+  node tools/deployed_score.mjs data/test-manifest.jsonl artifacts/release-test-scores.jsonl
+```
+
+The scorer activates images in waves of at most 60 (48 by default), so manifests larger than the runtime's 64-pending-job bound are supported without overloading it. It records the exact deployed score, result, provider, wall time, total pipeline time, fetch/hash/decode/preprocess/inference/queue timings, crop count, and cache status for every scored image. The companion `.summary.json` separates the first case from subsequent uncached cases and reports p50/p95/max wall, pipeline, and inference latency. Treat the first case as model-cold only when Chrome was launched with a fresh profile for that run.
+
+Small images, disabled analysis, unsupported images, and inference errors are explicit terminal statuses. They remain in the output and make the scorer exit nonzero rather than disappearing as timeouts. Local paths and fields whose names end in `URL` or `path` are removed from output. `SCORE_EXPECT_RUNTIME=webgpu` or `wasm` makes an unexpected non-metadata provider fail the run.
+
+The scorer enables page-target CDP network capture and rejects requests outside its loopback fixture and the extension origin. Because a page-target trace may not observe every offscreen/worker request, the final offline proof must also run Chrome with external network access blocked at the process/OS layer, preload only the loopback fixture, and retain a browser-wide network log. Repeat once normally and once with GPU disabled for the WASM path. To test MV3 suspension recovery, terminate the extension service-worker target while a deliberately slow WASM batch is active; every case must still reach a terminal status because routing metadata is persisted in `storage.session`.
 
 These are packaging safeguards, not reported accuracy. Passing them does not justify a public claim unless the underlying labeled rows, source separation, and report are independently auditable.
 
