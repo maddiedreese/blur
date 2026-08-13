@@ -1,0 +1,30 @@
+{
+  "evaluation": "protected-full-resolution-diagnostic",
+  "evaluationMode": "deployed",
+  "runtime": "webgpu",
+  "threshold": 0.65,
+  "modelOnnxSha256": "c376ed8cf38f2aedd21c74cfaf51ee9fec7936efd332f54d76bf630a14e2d3bf",
+  "scoreRowsSha256": "ff669ac3f76a429d090c56798f59b73b4898bfd18cb1fccc6574a3eba904f0a1",
+  "preprocessingVersion": "blur-v1-resize440-crop384-spatial3-logodds-0.9-0.1",
+  "count": 64,
+  "uniqueBaseImages": 64,
+  "realSourceCount": 1,
+  "generatorFamilyCount": 2,
+  "confusion": {
+    "truePositive": 31,
+    "falseNegative": 1,
+    "trueNegative": 32,
+    "falsePositive": 0
+  },
+  "aiRecall": 0.96875,
+  "realRecall": 1.0,
+  "balancedAccuracy": 0.984375,
+  "falsePositiveRate": 0.0,
+  "precision": 1.0,
+  "brierScore": 0.010208609953879228,
+  "limitations": [
+    "This is a small diagnostic, not the private bounty benchmark.",
+    "It contains one held-out real source and two held-out generator families.",
+    "No threshold, calibration, model, or preprocessing choice was selected from these rows."
+  ]
+}

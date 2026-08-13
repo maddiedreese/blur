@@ -1,9 +1,15 @@
-import { cp, mkdir, rm, access } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { cp, mkdir, rm, access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { build } from 'esbuild';
 
 const root = process.cwd();
 const dist = path.join(root, 'dist');
+const modelMetadata = JSON.parse(await readFile(path.join(root, 'models/model.json'), 'utf8'));
+
+async function sha256(file) {
+  return createHash('sha256').update(await readFile(file)).digest('hex');
+}
 await rm(dist, { recursive: true, force: true });
 await mkdir(path.join(dist, 'assets'), { recursive: true });
 await cp(path.join(root, 'static'), dist, { recursive: true });
@@ -15,8 +21,17 @@ for (const [entry, outfile] of [
 
 const ortDist = path.join(root, 'node_modules/onnxruntime-web/dist');
 for (const file of ['ort-wasm-simd-threaded.jsep.mjs', 'ort-wasm-simd-threaded.jsep.wasm', 'ort-wasm-simd-threaded.mjs', 'ort-wasm-simd-threaded.wasm']) {
-  try { await cp(path.join(ortDist, file), path.join(dist, 'assets', file)); } catch { /* version-dependent optional artifact */ }
+  await cp(path.join(ortDist, file), path.join(dist, 'assets', file));
 }
-try { await access(path.join(root, 'models/detector.onnx')); await cp(path.join(root, 'models/detector.onnx'), path.join(dist, 'assets/detector.onnx')); }
+const c2paDist = path.join(root, 'node_modules/@contentauth/c2pa-web/dist');
+await cp(path.join(c2paDist, 'resources/c2pa_bg.wasm'), path.join(dist, 'assets/c2pa_bg.wasm'));
+await cp(path.join(c2paDist, 'c2pa_worker.js'), path.join(dist, 'assets/c2pa_worker.js'));
+const modelPath = path.join(root, 'models/detector.onnx');
+try { await access(modelPath); }
 catch { throw new Error('models/detector.onnx is absent; run the documented model export before building'); }
+const actualModelHash = await sha256(modelPath);
+if (actualModelHash !== modelMetadata.onnx_sha256) {
+  throw new Error(`models/detector.onnx SHA-256 mismatch: expected ${modelMetadata.onnx_sha256}, got ${actualModelHash}`);
+}
+await cp(modelPath, path.join(dist, 'assets/detector.onnx'));
 console.log(`built ${dist}`);
