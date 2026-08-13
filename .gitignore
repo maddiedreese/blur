@@ -3,9 +3,17 @@ node_modules/
 dist/
 release/
 coverage/
+artifacts/
+data/
+__pycache__/
+*.py[cod]
 models/*.onnx
 models/*.onnx.data
 models/*.safetensors
+!models/detector-thumbnail-head.safetensors
+models/calibration.json
+quarantine/*
+!quarantine/README.md
 .DS_Store
 *.crx
 *.pem

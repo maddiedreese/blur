@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import pathlib
+import argparse
 
 import numpy as np
 import onnx
@@ -16,9 +17,9 @@ import timm
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 
 
-def load_torch_model() -> torch.nn.Module:
+def load_torch_model(checkpoint: pathlib.Path) -> torch.nn.Module:
     model = timm.create_model("vit_small_patch16_384.augreg_in21k_ft_in1k", pretrained=False, num_classes=1)
-    state = load_file(str(ROOT / "models/commfor-model-384.safetensors"))
+    state = load_file(str(checkpoint))
     if all(key.startswith("vit.") for key in state):
         state = {key.removeprefix("vit."): value for key, value in state.items()}
     model.load_state_dict(state)
@@ -26,10 +27,14 @@ def load_torch_model() -> torch.nn.Module:
 
 
 def main() -> None:
-    model_path = ROOT / "models/detector.onnx"
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--checkpoint", type=pathlib.Path, default=ROOT / "models/detector-thumbnail-head.safetensors")
+    parser.add_argument("--model", type=pathlib.Path, default=ROOT / "models/detector.onnx")
+    args = parser.parse_args()
+    model_path = args.model
     onnx.checker.check_model(onnx.load(model_path))
     session = ort.InferenceSession(str(model_path), providers=["CPUExecutionProvider"])
-    torch_model = load_torch_model()
+    torch_model = load_torch_model(args.checkpoint)
     generator = np.random.default_rng(11997733)
     max_error = 0.0
     for sample in [np.zeros((1, 3, 384, 384), np.float32), generator.standard_normal((1, 3, 384, 384), dtype=np.float32)]:

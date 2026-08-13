@@ -19,8 +19,8 @@
 1. Follow the complete build steps in the README.
 2. Create a fresh Chrome profile and load `dist/` unpacked.
 3. Open `e2e/fixture.html` through any static HTTP server.
-4. Verify a score badge appears and its title reports `Local webgpu analysis`.
-5. Relaunch Chrome with GPU unavailable or disabled and verify the title reports `Local wasm analysis`.
+4. Verify a score badge appears and its title reports a local `webgpu` evidence score.
+5. Relaunch Chrome with GPU unavailable or disabled and verify the title reports a local `wasm` evidence score.
 6. Disconnect the network and repeat with a local or cached page to demonstrate that no inference asset is downloaded.
 7. Inspect network activity and confirm there are no developer, model, telemetry, API, or inference requests.
 
